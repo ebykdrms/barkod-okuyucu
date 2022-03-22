@@ -157,22 +157,29 @@
   <script src="quagga.min.js"></script>
   <script>
 
+    var cameraViewerElement = document.querySelector('#camera');
+    var resultElement = document.getElementById("barcode");
+    var barcodeTypeSelectElement = document.getElementById("barcode-type");
+    var toggleCameraButtonElement = document.getElementById("open-camera-button");
+
     var cameraOpened = false;
     var quaggaInitialized = false;
     var quaggaReaded = {};
 
+    function closeCamera() {
+      Quagga.offDetected();
+      Quagga.stop();
+      quaggaReaded = {};
+      quaggaInitialized = false;
+      cameraOpened = false;
+    }
+
     function toggleBarcodeReading() {
-      if (cameraOpened) {
-        Quagga.offDetected();
-        Quagga.stop();
-        quaggaReaded = {};
-        quaggaInitialized = false;
-        cameraOpened = false;
-      }
+      if (cameraOpened) closeCamera()
       else {
         if (!quaggaInitialized) {
 
-          let selectedReader = [document.getElementById("barcode-type").value];
+          let selectedReader = [barcodeTypeSelectElement.value];
           if (selectedReader[0] === "all") {
             selectedReader = [
               "code_128_reader",
@@ -192,26 +199,21 @@
 
           Quagga.init(
             {
-              inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#camera') },
+              inputStream: { name: "Live", type: "LiveStream", target: cameraViewerElement },
               decoder: { readers: selectedReader }
             },
             function (err) {
               if (err) {
-                if (err.message == "Permission denied") {
-                  alert("Tarayınızıdan kamera izni vermeniz gerekiyor.")
-                }
-                else {
-                  alert(err.message);
-                }
-                return
+                if (err.message == "Permission denied") alert("Tarayıcınızıdan kamera izni vermeniz gerekiyor.");
+                else alert(err.message);
+                return;
               }
               quaggaInitialized = true;
               Quagga.start();
             });
         }
-        else {
-          Quagga.start();
-        }
+        else Quagga.start();
+
         cameraOpened = true;
 
         Quagga.onDetected(function (e) {
@@ -219,21 +221,16 @@
           if (quaggaReaded["r" + e.codeResult.code] !== undefined) { quaggaReaded["r" + e.codeResult.code] += 1; }
           else quaggaReaded["r" + e.codeResult.code] = 0;
 
-          document.getElementById("barcode").innerHTML = e.codeResult.code + " - " + e.codeResult.format + " - " + quaggaReaded["r" + e.codeResult.code];
           console.log(e.codeResult.code + " - " + e.codeResult.format + " - " + quaggaReaded["r" + e.codeResult.code]);
 
           if (quaggaReaded["r" + e.codeResult.code] >= 5) {
-            Quagga.offDetected();
-            Quagga.stop();
-            quaggaReaded = {};
-            quaggaInitialized = false;
-
+            closeCamera();
+            resultElement.innerHTML = e.codeResult.code;
           }
         });
       }
 
-      if (cameraOpened) document.getElementById("open-camera-button").innerHTML = "Kamerayı Kapat";
-      else document.getElementById("open-camera-button").innerHTML = "Kamerayı Aç";
+      if (cameraOpened) toggleCameraButtonElement.innerHTML = cameraOpened ? "Kamerayı Kapat" : "Kamerayı Aç";
     }
 
   </script>
