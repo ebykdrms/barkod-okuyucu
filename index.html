@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barkod Okuyucu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Quicksand', sans-serif;
+    }
+
+    html,
+    body {
+      height: 100%;
+    }
+
+    #content {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+
+    #camera-wrapper {
+      background-color: #000;
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #camera {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+    }
+
+    #camera>canvas {
+      position: absolute;
+    }
+
+    #camera>video {
+      flex: 1;
+    }
+
+    #panel {
+      height: 100px;
+      display: flex;
+      flex-direction: row;
+      border-top: 1px solid #ccc;
+    }
+
+    #panel button {
+      height: 100%;
+      aspect-ratio: 2;
+      background-color: cornflowerblue;
+      border: none;
+      color: #e2e2e2;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color ease .3s;
+    }
+
+    #panel button:hover {
+      background-color: rgb(122, 168, 255);
+      border: none;
+      color: #e2e2e2;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    #barcode {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      font-size: 13px;
+      padding: 0 20px;
+    }
+
+    #barcode-type {
+      padding: 0 20px;
+      outline: none;
+      border: none;
+      border-left: 1px solid #ccc;
+      background-color: tomato;
+      color: #fff;
+    }
+
+    @media(max-width:991px) {
+      #panel button {
+        height: 100%;
+        padding: 5px;
+        aspect-ratio: unset;
+        width: auto;
+        background-color: cornflowerblue;
+        border: none;
+        color: #e2e2e2;
+        font-size: 13px;
+        cursor: pointer;
+        transition: background-color ease .3s;
+      }
+    }
+
+    #barcode {
+      padding: 5px;
+    }
+
+    #barcode-type {
+      padding: 0 5px;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <div id="content">
+
+    <div id="camera-wrapper">
+      <div id="camera"></div>
+    </div>
+    <div id="panel">
+      <button id="open-camera-button" onclick="toggleBarcodeReading()">Kamerayı Aç</button>
+      <div id="barcode">Kamerayı açıp barkod okutabilirsiniz...</div>
+      <select id="barcode-type">
+        <option value="all">Tümü</option>
+        <option value="code_128_reader">code_128_reader</option>
+        <option value="ean_reader" selected>ean_reader</option>
+        <option value="ean_8_reader">ean_8_reader</option>
+        <option value="code_39_reader">code_39_reader</option>
+        <option value="code_39_vin_reader">code_39_vin_reader</option>
+        <option value="codabar_reader">codabar_reader</option>
+        <option value="upc_reader">upc_reader</option>
+        <option value="upc_e_reader">upc_e_reader</option>
+        <option value="i2of5_reader">i2of5_reader</option>
+        <option value="2of5_reader">2of5_reader</option>
+        <option value="code_93_reader">code_93_reader</option>
+        <option value="code_32_reader">code_32_reader</option>
+      </select>
+    </div>
+
+  </div>
+
+  <script src="quagga.min.js"></script>
+  <script>
+
+    var cameraOpened = false;
+    var quaggaInitialized = false;
+    var quaggaReaded = {};
+
+    function toggleBarcodeReading() {
+      if (cameraOpened) {
+        Quagga.offDetected();
+        Quagga.stop();
+        quaggaReaded = {};
+        quaggaInitialized = false;
+        cameraOpened = false;
+      }
+      else {
+        if (!quaggaInitialized) {
+
+          let selectedReader = [document.getElementById("barcode-type").value];
+          if (selectedReader[0] === "all") {
+            selectedReader = [
+              "code_128_reader",
+              "ean_reader",
+              "ean_8_reader",
+              "code_39_reader",
+              "code_39_vin_reader",
+              "codabar_reader",
+              "upc_reader",
+              "upc_e_reader",
+              "i2of5_reader",
+              "2of5_reader",
+              "code_93_reader",
+              "code_32_reader",
+            ];
+          }
+
+          Quagga.init(
+            {
+              inputStream: { name: "Live", type: "LiveStream", target: document.querySelector('#camera') },
+              decoder: { readers: selectedReader }
+            },
+            function (err) {
+              if (err) {
+                if (err.message == "Permission denied") {
+                  alert("Tarayınızıdan kamera izni vermeniz gerekiyor.")
+                }
+                else {
+                  alert(err.message);
+                }
+                return
+              }
+              quaggaInitialized = true;
+              Quagga.start();
+            });
+        }
+        else {
+          Quagga.start();
+        }
+        cameraOpened = true;
+
+        Quagga.onDetected(function (e) {
+          console.log(quaggaReaded)
+          if (quaggaReaded["r" + e.codeResult.code] !== undefined) { quaggaReaded["r" + e.codeResult.code] += 1; }
+          else quaggaReaded["r" + e.codeResult.code] = 0;
+
+          document.getElementById("barcode").innerHTML = e.codeResult.code + " - " + e.codeResult.format + " - " + quaggaReaded["r" + e.codeResult.code];
+          console.log(e.codeResult.code + " - " + e.codeResult.format + " - " + quaggaReaded["r" + e.codeResult.code]);
+
+          if (quaggaReaded["r" + e.codeResult.code] >= 5) {
+            Quagga.offDetected();
+            Quagga.stop();
+            quaggaReaded = {};
+            quaggaInitialized = false;
+
+          }
+        });
+      }
+
+      if (cameraOpened) document.getElementById("open-camera-button").innerHTML = "Kamerayı Kapat";
+      else document.getElementById("open-camera-button").innerHTML = "Kamerayı Aç";
+    }
+
+  </script>
+
+</body>
+
+</html>
